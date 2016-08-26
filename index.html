@@ -1,0 +1,168 @@
+<html>
+  <head>
+      <!-- Load c3.css -->
+    <link href="c3.css" rel="stylesheet" type="text/css">
+
+    <!-- Load d3.js and c3.js -->
+    <script src="https://d3js.org/d3.v3.min.js"></script>
+    <script src="c3.js"></script>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-2.2.0.min.js"></script>
+  </head>
+  <body>
+    <script>
+      function average(arr) {
+        var sum = arr.reduce(function(a, b) { return a + b; });
+        var avg = sum / arr.length;
+        return avg;
+      }
+
+      function weeklyPercentage(dailyStories, totalStories) {
+        if (totalStories === 0) {
+          return 0;
+        }
+        return (dailyStories / totalStories) * 100;
+      }
+
+      function fetchAndAnalyze() {
+        var projectId = $('#projectId').val();
+        var token = $('#token').val();
+        var weeksToAnalyze = $('#numWeeks').val();
+
+        $.ajax({
+          url: 'https://www.pivotaltracker.com/services/v5/projects/' + projectId + '/iterations',
+          data: {
+            "fields": "number,velocity,analytics,start,finish,accepted",
+            "scope": "done_current",
+            "offset": -(weeksToAnalyze - 1),
+            "limit": weeksToAnalyze
+          },
+          beforeSend: function(xhr) {
+            xhr.setRequestHeader('X-TrackerToken', token);
+          },
+
+          success: function(data){
+            var weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+            var pointsAcceptedByDay = {};
+            var storiesAcceptedByDay = {};
+            var percentages = {};
+
+            weekdays.forEach(function(weekday) {
+              pointsAcceptedByDay[weekday] = [];
+              storiesAcceptedByDay[weekday] = [];
+              percentages[weekday] = [];
+            });
+
+
+            data.forEach(function(iteration, i) {
+              var previousUTCDate;
+              iteration.accepted.data.forEach(function(day) {
+                var date = new Date(day[0]);
+                var utc_date = new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(),  date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds());
+
+                if (previousUTCDate && utc_date.getDay() === previousUTCDate.getDay()) {
+                  pointsAcceptedByDay[weekdays[utc_date.getDay()]][i] += day[2];
+                  storiesAcceptedByDay[weekdays[utc_date.getDay()]][i] += day[3];
+                } else {
+                  pointsAcceptedByDay[weekdays[utc_date.getDay()]].push(day[2]);
+                  storiesAcceptedByDay[weekdays[utc_date.getDay()]].push(day[3]);
+                }
+
+                previousUTCDate = utc_date;
+              });
+
+              // percentage of stories accepted for the week
+              weekdays.forEach(function(weekday) {
+                percentages[weekday].push(weeklyPercentage(storiesAcceptedByDay[weekday][i], iteration.analytics.stories_accepted));
+              });
+            });
+
+            var acceptedPointsData = ['Average Points Accepted'];
+            var acceptedCountsData = ['Average Stories Accepted'];
+            var percentagesData = ['Average Percentage of Stories Accepted for Iteration'];
+
+            weekdays.forEach(function(weekday) {
+              acceptedPointsData.push(average(pointsAcceptedByDay[weekday]));
+              acceptedCountsData.push(average(pointsAcceptedByDay[weekday]));
+              percentagesData.push(average(percentages[weekday]));
+            });
+
+
+            // averages chart
+            c3.generate({
+                bindto: '#averagesChart',
+                data: {
+                    columns: [
+                      acceptedPointsData,
+                      acceptedCountsData
+                    ],
+                    type: 'bar'
+                },
+                bar: {
+                    width: {
+                        ratio: 0.5
+                    }
+                },
+                axis: {
+                    x: {
+                        type: 'category',
+                        categories: weekdays,
+                        tick: {
+                          centered: true
+                        }
+                    }
+                }
+            });
+
+            // percentage chart
+            c3.generate({
+                bindto: '#percentagesChart',
+                data: {
+                    columns: [
+                      percentagesData
+                    ],
+                    type: 'bar'
+                },
+                bar: {
+                    width: {
+                        ratio: 0.5
+                    }
+                },
+                axis: {
+                    x: {
+                        type: 'category',
+                        categories: weekdays,
+                        tick: {
+                          centered: true
+                        }
+                    }
+                }
+            });
+          }
+        });
+      }
+    </script>
+
+    <div>
+      Enter project id: <input type="text" id="projectId">
+    </div>
+    <div>
+      Enter your API token: <input type="text" id="token">
+    </div>
+    <div>
+      Number of weeks to analyze: <input type="text" id="numWeeks">
+    </div>
+    <div>
+      <button type="button" onclick="fetchAndAnalyze();">Fetch analytics</button>
+    </div>
+
+    <div id="averagesChart" width="300px" height="200px" style="padding-top: 20px;">
+    </div>
+
+    <div id="percentagesChart" width="300px" height="200px" style="padding-top: 20px;">
+    </div>
+
+  </body>
+</html>

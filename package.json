@@ -1,0 +1,12 @@
+{
+  "name": "hack-day-daily-analytics",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "dependencies": {},
+  "devDependencies": {
+    "express": "^4.14.0"
+  },
+  "author": "",
+  "license": "MIT"
+}
