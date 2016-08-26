@@ -15,14 +15,14 @@
       function average(arr) {
         var sum = arr.reduce(function(a, b) { return a + b; });
         var avg = sum / arr.length;
-        return avg;
+        return parseFloat(avg.toFixed(2));
       }
 
       function weeklyPercentage(dailyStories, totalStories) {
         if (totalStories === 0) {
           return 0;
         }
-        return (dailyStories / totalStories) * 100;
+        return parseFloat(((dailyStories / totalStories) * 100).toFixed(2));
       }
 
       function fetchAndAnalyze() {
@@ -85,7 +85,7 @@
 
             weekdays.forEach(function(weekday) {
               acceptedPointsData.push(average(pointsAcceptedByDay[weekday]));
-              acceptedCountsData.push(average(pointsAcceptedByDay[weekday]));
+              acceptedCountsData.push(average(storiesAcceptedByDay[weekday]));
               percentagesData.push(average(percentages[weekday]));
             });
 
