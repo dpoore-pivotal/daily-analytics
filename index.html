@@ -70,79 +70,107 @@
       }
 
       function fetchAndAnalyze() {
-        var projectId = $('#projectId').val();
+        var projectIds = $('#projectIds').val().split(',');
         var token = $('#token').val();
         var weeksToAnalyze = $('#numWeeks').val();
 
         $('.loading').show();
 
-        $.ajax({
-          url: 'https://www.pivotaltracker.com/services/v5/projects/' + projectId + '/iterations',
-          data: {
-            "fields": "number,velocity,analytics,start,finish,accepted",
-            "scope": "done_current",
-            "offset": -(weeksToAnalyze - 1),
-            "limit": weeksToAnalyze
-          },
-          beforeSend: function(xhr) {
-            xhr.setRequestHeader('X-TrackerToken', token);
-          },
+        var ajaxRequests = [];
+        var perProjectData = {};
+        var weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-          success: function(data){
-            var weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        projectIds.forEach(function(projectId) {
+          ajaxRequests.push($.ajax({
+            url: 'https://www.pivotaltracker.com/services/v5/projects/' + projectId + '/iterations',
+            data: {
+              "fields": "number,velocity,analytics,start,finish,accepted",
+              "scope": "done_current",
+              "offset": -(weeksToAnalyze - 1),
+              "limit": weeksToAnalyze
+            },
+            beforeSend: function(xhr) {
+              xhr.setRequestHeader('X-TrackerToken', token);
+            },
 
-            var pointsAcceptedByDay = {};
-            var storiesAcceptedByDay = {};
-            var percentages = {};
+            success: function(data){
+              var pointsAcceptedByDay = {};
+              var storiesAcceptedByDay = {};
+              var percentages = {};
 
-            weekdays.forEach(function(weekday) {
-              pointsAcceptedByDay[weekday] = [];
-              storiesAcceptedByDay[weekday] = [];
-              percentages[weekday] = [];
-            });
-
-
-            data.forEach(function(iteration, i) {
-              var previousUTCDate;
-              iteration.accepted.data.forEach(function(day) {
-                var date = new Date(day[0]);
-                var utc_date = new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(),  date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds());
-
-                if (previousUTCDate && utc_date.getDay() === previousUTCDate.getDay()) {
-                  pointsAcceptedByDay[weekdays[utc_date.getDay()]][i] += day[2];
-                  storiesAcceptedByDay[weekdays[utc_date.getDay()]][i] += day[3];
-                } else {
-                  pointsAcceptedByDay[weekdays[utc_date.getDay()]].push(day[2]);
-                  storiesAcceptedByDay[weekdays[utc_date.getDay()]].push(day[3]);
-                }
-
-                previousUTCDate = utc_date;
-              });
-
-              // percentage of stories accepted for the week
               weekdays.forEach(function(weekday) {
-                percentages[weekday].push(weeklyPercentage(storiesAcceptedByDay[weekday][i], iteration.analytics.stories_accepted));
+                pointsAcceptedByDay[weekday] = [];
+                storiesAcceptedByDay[weekday] = [];
+                percentages[weekday] = [];
               });
-            });
 
-            var acceptedPointsData = ['Average Points Accepted'];
-            var acceptedCountsData = ['Average Stories Accepted'];
-            var percentagesData = ['Average Percentage of Stories Accepted for Iteration'];
 
+              data.forEach(function(iteration, i) {
+                var previousUTCDate;
+                iteration.accepted.data.forEach(function(day) {
+                  var date = new Date(day[0]);
+                  var utc_date = new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(),  date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds());
+
+                  if (previousUTCDate && utc_date.getDay() === previousUTCDate.getDay()) {
+                    pointsAcceptedByDay[weekdays[utc_date.getDay()]][i] += day[2];
+                    storiesAcceptedByDay[weekdays[utc_date.getDay()]][i] += day[3];
+                  } else {
+                    pointsAcceptedByDay[weekdays[utc_date.getDay()]].push(day[2]);
+                    storiesAcceptedByDay[weekdays[utc_date.getDay()]].push(day[3]);
+                  }
+
+                  previousUTCDate = utc_date;
+                });
+
+                weekdays.forEach(function(weekday) {
+                  percentages[weekday].push(weeklyPercentage(storiesAcceptedByDay[weekday][i], iteration.analytics.stories_accepted));
+                });
+              });
+
+              perProjectData[projectId] = {};
+              perProjectData[projectId]["points"] = pointsAcceptedByDay;
+              perProjectData[projectId]["counts"] = storiesAcceptedByDay;
+              perProjectData[projectId]["percentages"] = percentages;
+            }
+          }));
+        });
+
+        $.when.apply($, ajaxRequests).then(function() {
+          $('.loading').hide();
+
+          var pointsAcceptedByDay = {};
+          var storiesAcceptedByDay = {};
+          var percentages = {};
+
+          weekdays.forEach(function(weekday) {
+            pointsAcceptedByDay[weekday] = [];
+            storiesAcceptedByDay[weekday] = [];
+            percentages[weekday] = [];
+          });
+
+          projectIds.forEach(function(projectId) {
             weekdays.forEach(function(weekday) {
-              acceptedPointsData.push(average(pointsAcceptedByDay[weekday]));
-              acceptedCountsData.push(average(storiesAcceptedByDay[weekday]));
-              percentagesData.push(average(percentages[weekday]));
+              pointsAcceptedByDay[weekday].push(perProjectData[projectId]["points"][weekday][0]);
+              storiesAcceptedByDay[weekday].push(perProjectData[projectId]["counts"][weekday][0]);
+              percentages[weekday].push(perProjectData[projectId]["percentages"][weekday][0]);
             });
+          });
 
-            var averagesChartData = [acceptedPointsData, acceptedCountsData];
-            createChart(averagesChartData, '#averagesChart');
+          var acceptedPointsData = ['Average Points Accepted'];
+          var acceptedCountsData = ['Average Stories Accepted'];
+          var percentagesData = ['Average Percentage of Stories Accepted for Iteration'];
 
-            var percentagesChartData = [percentagesData];
-            createChart(percentagesChartData, '#percentagesChart');
+          weekdays.forEach(function(weekday) {
+            acceptedPointsData.push(average(pointsAcceptedByDay[weekday]));
+            acceptedCountsData.push(average(storiesAcceptedByDay[weekday]));
+            percentagesData.push(average(percentages[weekday]));
+          });
 
-            $('.loading').hide();
-          }
+          var averagesChartData = [acceptedPointsData, acceptedCountsData];
+          createChart(averagesChartData, '#averagesChart');
+
+          var percentagesChartData = [percentagesData];
+          createChart(percentagesChartData, '#percentagesChart');
         });
       }
     </script>
@@ -169,7 +197,7 @@
 
     <div class="inputs">
       <div class="input">
-        Project ID: <input type="text" id="projectId">
+        Project IDs: <input title="Input project ids as a comma-separated list" type="text" id="projectIds">
       </div>
 
       <div class="input">
@@ -181,7 +209,7 @@
       </div>
 
       <div class="fetchButton">
-        <button type="button" onclick="fetchAndAnalyze();">Fetch analytics</button>
+        <button type="button" onclick="fetchAndAnalyze();">Fetch Analytics</button>
       </div>
     </div>
   </body>
