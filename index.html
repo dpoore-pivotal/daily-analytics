@@ -9,6 +9,9 @@
 
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-2.2.0.min.js"></script>
+
+    <!-- local css -->
+    <link rel="stylesheet" type="text/css" href="main.css" />
   </head>
   <body>
     <script>
@@ -25,10 +28,51 @@
         return parseFloat(((dailyStories / totalStories) * 100).toFixed(2));
       }
 
+      function createChart(chartData, elementToBind) {
+         c3.generate({
+              bindto: elementToBind,
+              size: {
+                width: 470,
+                height: 400
+              },
+              padding: {
+                top: 10
+              },
+              data: {
+                  columns: chartData,
+                  type: 'bar'
+              },
+              bar: {
+                  width: {
+                      ratio: 0.5
+                  }
+              },
+              axis: {
+                  x: {
+                      type: 'category',
+                      categories: [
+                        'Sunday',
+                        'Monday',
+                        'Tuesday',
+                        'Wednesday',
+                        'Thursday',
+                        'Friday',
+                        'Saturday'
+                      ],
+                      tick: {
+                        centered: true
+                      }
+                  }
+              }
+          });
+      }
+
       function fetchAndAnalyze() {
         var projectId = $('#projectId').val();
         var token = $('#token').val();
         var weeksToAnalyze = $('#numWeeks').val();
+
+        $('.loading').show();
 
         $.ajax({
           url: 'https://www.pivotaltracker.com/services/v5/projects/' + projectId + '/iterations',
@@ -89,80 +133,46 @@
               percentagesData.push(average(percentages[weekday]));
             });
 
+            var averagesChartData = [acceptedPointsData, acceptedCountsData];
+            createChart(averagesChartData, '#averagesChart');
 
-            // averages chart
-            c3.generate({
-                bindto: '#averagesChart',
-                data: {
-                    columns: [
-                      acceptedPointsData,
-                      acceptedCountsData
-                    ],
-                    type: 'bar'
-                },
-                bar: {
-                    width: {
-                        ratio: 0.5
-                    }
-                },
-                axis: {
-                    x: {
-                        type: 'category',
-                        categories: weekdays,
-                        tick: {
-                          centered: true
-                        }
-                    }
-                }
-            });
+            var percentagesChartData = [percentagesData];
+            createChart(percentagesChartData, '#percentagesChart');
 
-            // percentage chart
-            c3.generate({
-                bindto: '#percentagesChart',
-                data: {
-                    columns: [
-                      percentagesData
-                    ],
-                    type: 'bar'
-                },
-                bar: {
-                    width: {
-                        ratio: 0.5
-                    }
-                },
-                axis: {
-                    x: {
-                        type: 'category',
-                        categories: weekdays,
-                        tick: {
-                          centered: true
-                        }
-                    }
-                }
-            });
+            $('.loading').hide();
           }
         });
       }
     </script>
 
-    <div>
-      Enter project id: <input type="text" id="projectId">
-    </div>
-    <div>
-      Enter your API token: <input type="text" id="token">
-    </div>
-    <div>
-      Number of weeks to analyze: <input type="text" id="numWeeks">
-    </div>
-    <div>
-      <button type="button" onclick="fetchAndAnalyze();">Fetch analytics</button>
+    <header>
+      <h1>Pivotal Tracker Productivity Analysis</h1>
+    </header>
+
+    <div class="chartContainer">
+      <div class="chart" id="averagesChart"></div>
+      <div class="chart" id="percentagesChart"></div>
+      <div class="loading">
+        <div class="loadingMessage">Loading data...</div>
+      </div>
     </div>
 
-    <div id="averagesChart" width="300px" height="200px" style="padding-top: 20px;">
-    </div>
+    <div class="inputs">
+      <div class="input">
+        Project ID: <input type="text" id="projectId">
+      </div>
 
-    <div id="percentagesChart" width="300px" height="200px" style="padding-top: 20px;">
-    </div>
+      <div class="input">
+        API Token: <input class="apiToken" type="text" id="token">
+      </div>
 
+      <div class="input">
+        Number of Weeks: <input classtype="text" id="numWeeks">
+      </div>
+
+      <div class="fetchButton">
+        <button type="button" onclick="fetchAndAnalyze();">Fetch analytics</button>
+      </div>
+    </div>
   </body>
 </html>
