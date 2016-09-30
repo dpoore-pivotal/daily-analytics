@@ -75,6 +75,8 @@
         var weeksToAnalyze = $('#numWeeks').val();
 
         $('.loading').show();
+        $('.crossProjectComparisons').hide();
+        $('.chartContainer').removeClass('biggerContainer');
 
         var ajaxRequests = [];
         var perProjectData = {};
@@ -171,6 +173,35 @@
 
           var percentagesChartData = [percentagesData];
           createChart(percentagesChartData, '#percentagesChart');
+
+          if(projectIds.length > 1) {
+            var comparisonPointsData = [];
+            var comparisonCountsData = [];
+            var comparisonPercentagesData = [];
+
+            projectIds.forEach(function(projectId) {
+              var pointsData = ['Average points for Project ' + projectId];
+              var countsData = ['Average counts for Project ' + projectId];
+              var percentages = ['Percentages accepted for Project ' + projectId];
+
+              weekdays.forEach(function(weekday) {
+                pointsData.push(perProjectData[projectId]["points"][weekday][0]);
+                countsData.push(perProjectData[projectId]["counts"][weekday][0]);
+                percentages.push(perProjectData[projectId]["percentages"][weekday][0]);
+              });
+
+              comparisonPointsData.push(pointsData);
+              comparisonCountsData.push(countsData);
+              comparisonPercentagesData.push(percentages);
+            });
+
+            createChart(comparisonPointsData, '#comparisonPointsChart');
+            createChart(comparisonCountsData, '#comparisonCountsChart');
+            createChart(comparisonPercentagesData, '#comparisonPercentagesChart');
+
+            $('.crossProjectComparisons').show();
+            $('.chartContainer').addClass('biggerContainer');
+          }
         });
       }
     </script>
@@ -190,6 +221,16 @@
           Enter your information below to load analytics data.
         </div>
       </div>
+
+      <div class="crossProjectComparisons">
+        <div class="chart" id="comparisonPointsChart">
+        </div>
+        <div class="chart" id="comparisonCountsChart">
+        </div>
+        <div class="chart" id="comparisonPercentagesChart">
+        </div>
+      </div>
+
       <div class="loading">
         <div class="loadingMessage">Loading data...</div>
       </div>
