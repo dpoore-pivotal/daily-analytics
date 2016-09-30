@@ -50,6 +50,12 @@ header {
   border-radius: 10px;
 }
 
+.chartMessage {
+  text-align: center;
+  margin-top: 190px;
+  font-size: 14px;
+}
+
 .inputs {
   width: 1000px;
   margin: 0 auto;
